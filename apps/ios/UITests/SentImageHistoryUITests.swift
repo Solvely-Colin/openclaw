@@ -58,11 +58,27 @@ final class SentImageHistoryUITests: XCTestCase {
         XCTAssertTrue(close.waitForExistence(timeout: 5))
         self.capture(app, name: "sent-photo-preview")
         close.tap()
+        sidebar.tap()
+        let selectedSession = app.buttons.matching(NSPredicate(
+            format: "identifier BEGINSWITH %@ AND isSelected == true",
+            "RootTabs.Sidebar.Session.")).firstMatch
+        XCTAssertTrue(selectedSession.waitForExistence(timeout: 10))
+        let sessionIdentifier = selectedSession.identifier
+        XCTAssertFalse(sessionIdentifier == "RootTabs.Sidebar.Session.")
         app.terminate()
         app.launch()
+        XCTAssertTrue(sidebar.waitForExistence(timeout: 10))
+        sidebar.tap()
+        let createdSession = app.buttons[sessionIdentifier]
+        XCTAssertTrue(createdSession.waitForExistence(timeout: 20), "Created conversation must survive relaunch")
+        createdSession.tap()
+        XCTAssertTrue(app.staticTexts[reply].waitForExistence(timeout: 20))
         XCTAssertTrue(
             app.buttons["chat-message-image"].firstMatch.waitForExistence(timeout: 20),
             "Sent image must remain fetchable after relaunch/cache reload")
+        XCTAssertEqual(
+            app.buttons.matching(identifier: "chat-message-image").count, 1,
+            "Created conversation must contain its single sent photo")
         self.capture(app, name: "sent-photo-after-relaunch")
     }
 
