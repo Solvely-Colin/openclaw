@@ -76,6 +76,7 @@ struct ChatMediaImageAttachment: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(self.label)
                 .accessibilityHint(String(localized: "Opens image preview"))
+                .accessibilityIdentifier("chat-message-image")
                 .sheet(isPresented: self.$showsFullImage) {
                     ZStack(alignment: .topTrailing) {
                         Color.black.ignoresSafeArea()
