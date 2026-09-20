@@ -125,6 +125,19 @@ final class PhotoAttachmentLockUITests: XCTestCase {
         let hittable = traced("query Send hittable") { send.isHittable }
         XCTAssertTrue(hittable, "Send must be hittable without dismissing the keyboard")
         traced("tap Send") { send.tap() }
+        let recovered = traced("wait for empty, enabled, hittable composer after Send (45s maximum)") {
+            let ready = NSPredicate { _, _ in
+                input.exists && input.isEnabled && input.isHittable && (input.value as? String) == ""
+            }
+            return XCTWaiter.wait(
+                for: [XCTNSPredicateExpectation(predicate: ready, object: input)],
+                timeout: 45
+            ) == .completed
+        }
+        guard recovered else {
+            XCTFail("Composer must clear and recover after Send before entering the next draft")
+            return
+        }
         assertDraft("", in: input)
         traced("tap composer after Send") { input.tap() }
         traced("type next draft character") { input.typeText("z") }
