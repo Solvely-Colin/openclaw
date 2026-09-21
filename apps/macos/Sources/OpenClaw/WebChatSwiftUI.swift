@@ -646,11 +646,15 @@ struct MacGatewayChatTransport: OpenClawChatGatewayTransport {
         return await self.connection.loadSourceFavicon(host: host)
     }
 
-    func loadInboundImage(sessionKey: String, source: String) async -> OpenClawChatLoadedMedia? {
+    func loadInboundMedia(
+        sessionKey: String,
+        source: String,
+        kind: OpenClawChatMediaKind) async -> OpenClawChatLoadedMedia?
+    {
         guard await self.currentOutboxGatewayMatchesConnection() else { return nil }
         let target = self.sessionTarget(for: sessionKey)
-        return await self.connection.loadInboundImage(
-            source: source, sessionKey: target.sessionKey, agentID: target.agentID)
+        return await self.connection.loadInboundMedia(
+            source: source, sessionKey: target.sessionKey, agentID: target.agentID, kind: kind)
     }
 
     func loadMediaArtifact(

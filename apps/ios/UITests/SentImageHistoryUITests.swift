@@ -82,6 +82,75 @@ final class SentImageHistoryUITests: XCTestCase {
         self.capture(app, name: "sent-photo-after-relaunch")
     }
 
+    func testSentVideoRemainsPlayableAfterReplyAndRelaunch() throws {
+        guard ProcessInfo.processInfo.environment["OPENCLAW_IOS_LIVE_GATEWAY"] == "1",
+              let reply = ProcessInfo.processInfo.environment["OPENCLAW_IOS_EXPECTED_VIDEO_REPLY"]
+        else { throw XCTSkip("Requires an isolated Gateway and a synthetic Photos video") }
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--openclaw-initial-tab", "chat", "--openclaw-initial-destination", "chat",
+            "--openclaw-sidebar-visibility", "hidden",
+            "-AppleLanguages", "(en)", "-AppleLocale", "en_US",
+        ]
+        app.launch()
+        let sidebar = app.buttons["RootTabs.Sidebar.Show"]
+        XCTAssertTrue(sidebar.waitForExistence(timeout: 10))
+        sidebar.tap()
+        let newChat = app.buttons["New Chat"]
+        XCTAssertTrue(newChat.waitForExistence(timeout: 5))
+        newChat.tap()
+        let picker = app.buttons["chat-attachment-picker"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 10))
+        picker.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        let library = app.buttons["Photo Library"]
+        XCTAssertTrue(library.waitForExistence(timeout: 5))
+        library.tap()
+        let video = app.images.matching(NSPredicate(format: "label BEGINSWITH %@", "Video,")).firstMatch
+        XCTAssertTrue(video.waitForExistence(timeout: 10))
+        video.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        let done = app.navigationBars["Photos"].buttons["Done"]
+        XCTAssertTrue(done.waitForExistence(timeout: 5))
+        XCTAssertTrue(done.isEnabled)
+        done.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        let send = app.buttons["chat-send-message"]
+        XCTAssertTrue(send.waitForExistence(timeout: 10))
+        let enabled = NSPredicate(format: "enabled == true")
+        expectation(for: enabled, evaluatedWith: send)
+        waitForExpectations(timeout: 15)
+        self.capture(app, name: "video-staged-before-send")
+        send.tap()
+        XCTAssertTrue(app.staticTexts[reply].waitForExistence(timeout: 45))
+        // The native player exposes its filename as the label and SF Symbol as the button identifier.
+        let play = app.buttons["play.circle.fill"].firstMatch
+        let visible = play.waitForExistence(timeout: 15)
+        self.capture(app, name: "sent-video-after-canonical-reply")
+        XCTAssertTrue(visible, "Sent video must remain playable after canonical history replaces the draft")
+        play.tap()
+        let playing = NSPredicate { _, _ in !play.exists }
+        expectation(for: playing, evaluatedWith: nil)
+        waitForExpectations(timeout: 5)
+        self.capture(app, name: "sent-video-playing")
+        sidebar.tap()
+        let selected = app.buttons.matching(NSPredicate(
+            format: "identifier BEGINSWITH %@ AND isSelected == true",
+            "RootTabs.Sidebar.Session.")).firstMatch
+        XCTAssertTrue(selected.waitForExistence(timeout: 10))
+        let sessionIdentifier = selected.identifier
+        XCTAssertFalse(sessionIdentifier == "RootTabs.Sidebar.Session.")
+        app.terminate()
+        app.launch()
+        XCTAssertTrue(sidebar.waitForExistence(timeout: 10))
+        sidebar.tap()
+        let createdSession = app.buttons[sessionIdentifier]
+        XCTAssertTrue(createdSession.waitForExistence(timeout: 20))
+        createdSession.tap()
+        XCTAssertTrue(app.staticTexts[reply].waitForExistence(timeout: 20))
+        XCTAssertTrue(play.waitForExistence(timeout: 20), "Video must remain playable in the same chat after relaunch")
+        XCTAssertEqual(app.buttons.matching(identifier: "play.circle.fill").count, 1)
+        self.capture(app, name: "sent-video-after-relaunch")
+    }
+
     private func capture(_ app: XCUIApplication, name: String) {
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = name

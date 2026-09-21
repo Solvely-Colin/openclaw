@@ -111,8 +111,11 @@ public actor OpenClawChatSourceResources {
         return data
     }
 
-    public func loadInboundImage(
-        source: String, sessionKey: String, agentID: String?) async -> OpenClawChatLoadedMedia?
+    public func loadInboundMedia(
+        source: String,
+        sessionKey: String,
+        agentID: String?,
+        kind: OpenClawChatMediaKind) async -> OpenClawChatLoadedMedia?
     {
         let revision = self.revision
         guard let source = OpenClawChatMediaURL.inboundSource(source), !sessionKey.isEmpty,
@@ -125,13 +128,17 @@ public actor OpenClawChatSourceResources {
             URLQueryItem(name: "sessionKey", value: sessionKey),
         ]
         if let agentID { components.queryItems?.append(URLQueryItem(name: "agentId", value: agentID)) }
-        let maximumBytes = 12 * 1024 * 1024
+        if kind != .image { components.queryItems?.append(URLQueryItem(name: "playback", value: "1")) }
+        let maximumBytes = (kind == .image ? 12 : 20) * 1024 * 1024
         guard let url = components.url,
               await self.isCurrent(), self.revision == revision, !Task.isCancelled,
               let (data, response) = try? await self.request(url, maximumBytes),
               await self.isCurrent(), self.revision == revision, !Task.isCancelled,
-              let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
-              let mimeType = http.mimeType, mimeType.lowercased().hasPrefix("image/"),
+              let http = response as? HTTPURLResponse
+        else { return nil }
+        if http.statusCode == 202, kind != .image { return .preparing }
+        guard http.statusCode == 200,
+              let mimeType = http.mimeType, mimeType.lowercased().hasPrefix(kind.mimeTypePrefix),
               !data.isEmpty, data.count <= maximumBytes
         else { return nil }
         return .data(OpenClawChatMediaData(data: data, mimeType: mimeType))

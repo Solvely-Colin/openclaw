@@ -11,8 +11,17 @@ extension GatewayConnection {
         await self.sourceResourceLoader()?.loadFavicon(host: host)
     }
 
-    func loadInboundImage(source: String, sessionKey: String, agentID: String?) async -> OpenClawChatLoadedMedia? {
-        await self.sourceResourceLoader()?.loadInboundImage(source: source, sessionKey: sessionKey, agentID: agentID)
+    func loadInboundMedia(
+        source: String,
+        sessionKey: String,
+        agentID: String?,
+        kind: OpenClawChatMediaKind) async -> OpenClawChatLoadedMedia?
+    {
+        await self.sourceResourceLoader()?.loadInboundMedia(
+            source: source,
+            sessionKey: sessionKey,
+            agentID: agentID,
+            kind: kind)
     }
 
     private func sourceResourceLoader() async -> OpenClawChatSourceResources? {
@@ -55,7 +64,7 @@ extension GatewayConnection {
         let bearer = try await sourceResourceBearer(ifCurrentServerLease: lease)
         var request = URLRequest(url: url)
         request.timeoutInterval = 15
-        request.setValue("application/json, image/*", forHTTPHeaderField: "Accept")
+        request.setValue("application/json, image/*, audio/*, video/*", forHTTPHeaderField: "Accept")
         for (name, value) in try lease.route.browserSession?.headers(for: url) ?? [:] {
             request.setValue(value, forHTTPHeaderField: name)
         }

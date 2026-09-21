@@ -668,9 +668,9 @@ public struct OpenClawChatView: View {
             mediaPlaybackAllowed: self.mediaPlaybackAllowed,
             loadMediaArtifact: { [weak viewModel] artifactId, kind, playback in
                 guard let viewModel else { return nil }
-                if kind == .image, OpenClawChatMediaURL.inboundSource(artifactId) != nil {
-                    return await viewModel.transport.loadInboundImage(
-                        sessionKey: viewModel.sessionKey, source: artifactId)
+                if OpenClawChatMediaURL.inboundSource(artifactId) != nil {
+                    return await viewModel.transport.loadInboundMedia(
+                        sessionKey: viewModel.sessionKey, source: artifactId, kind: kind)
                 }
                 return try await viewModel.transport.loadMediaArtifact(
                     sessionKey: viewModel.sessionKey,
