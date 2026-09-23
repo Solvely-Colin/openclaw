@@ -1,0 +1,11 @@
+pr-current-base.log
+✔ Test run with 72 tests in 4 suites passed after 0.282 seconds.
+** TEST SUCCEEDED **
+
+scale-phone.log
+Test Case '-[OpenClawUITests.AdaptiveLayoutUITests testPhoneOfflineChatKeepsCompactLayout]' passed (48.880 seconds).
+** TEST SUCCEEDED **
+
+scale-ipad-ui.log
+Test Case '-[OpenClawUITests.AdaptiveLayoutUITests testOfflineChatAdaptsAcrossRotationAndRemembersHiddenSidebar]' passed (32.354 seconds).
+** TEST SUCCEEDED **
