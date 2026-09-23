@@ -336,6 +336,9 @@ struct ChatMessageBubble: View {
                     .frame(
                         maxWidth: self.usesReadingColumn ? .infinity : ChatUIConstants.bubbleMaxWidth,
                         alignment: .leading)
+                    .contentShape(.accessibility, Rectangle())
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("chat-assistant-message-body")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 2)
@@ -1145,6 +1148,9 @@ struct ChatStreamingAssistantBubble: View {
             }
             .padding(self.isClean ? 4 : 12)
             .assistantBubbleContainerStyle(isClean: self.isClean)
+            .contentShape(.accessibility, Rectangle())
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("chat-streaming-assistant-body")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

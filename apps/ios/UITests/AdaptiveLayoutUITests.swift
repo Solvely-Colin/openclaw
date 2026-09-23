@@ -56,6 +56,7 @@ final class AdaptiveLayoutUITests: XCTestCase {
         app.launchArguments = [
             "--openclaw-initial-destination", "chat",
             "--openclaw-appearance", "light",
+            "--openclaw-ui-test-readiness",
             "-onboarding.completed", "YES",
             "-gateway.preferredStableID", "adaptive-offline",
             "-onboarding.quickSetupDismissed", "YES",
@@ -81,6 +82,20 @@ final class AdaptiveLayoutUITests: XCTestCase {
             XCTAssertGreaterThan(composer.frame.width, 760)
         }
         self.capture("iphone-landscape-compact-chat")
+        XCUIDevice.shared.orientation = .portrait
+        self.waitForPortrait(in: app)
+        show.tap()
+        let overview = app.buttons["RootTabs.Sidebar.Destination.overview"]
+        XCTAssertTrue(overview.waitForExistence(timeout: 5))
+        overview.tap()
+        let readiness = app.descendants(matching: .any)["RootTabs.Ready"].firstMatch
+        self.expectation(for: NSPredicate(format: "value == %@", "ready:overview"), evaluatedWith: readiness)
+        self.waitForExpectations(timeout: 10)
+        XCTAssertTrue(show.waitForExistence(timeout: 5), "Selecting a drawer row must navigate and close it")
+        show.tap()
+        XCTAssertTrue(overview.waitForExistence(timeout: 5))
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
+        XCTAssertTrue(show.waitForExistence(timeout: 5), "Tapping exposed detail must dismiss the drawer")
     }
 
     /// Synthetic conversation content is used only to exercise native interaction.
@@ -152,6 +167,68 @@ final class AdaptiveLayoutUITests: XCTestCase {
         app.typeText("4")
         self.assertDraft("draft1234", in: input)
         XCTAssertEqual(hide.exists, !usesCompactPortrait)
+    }
+
+    /// Synthetic transport data exercises the real completed and streaming renderers.
+    /// No fixture screenshots are attached as product evidence.
+    func testAssistantAndStreamingResponsesShareComposerColumn() throws {
+        try XCTSkipUnless(UIDevice.current.userInterfaceIdiom == .pad, "Requires an iPad")
+        continueAfterFailure = false
+        XCUIDevice.shared.orientation = .landscapeLeft
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--openclaw-initial-destination", "chat",
+            "--openclaw-screenshot-mode", "--openclaw-ui-test-readiness",
+            "--openclaw-sidebar-visibility", "hidden",
+            "--openclaw-hold-initial-chat-run", "--openclaw-streaming-layout-fixture",
+        ]
+        app.launch()
+        defer {
+            app.terminate()
+            XCUIDevice.shared.orientation = .portrait
+        }
+        let composer = app.otherElements["chat-composer-surface"].firstMatch
+        let completed = app.descendants(matching: .any)["chat-assistant-message-body"].firstMatch
+        XCTAssertTrue(completed.waitForExistence(timeout: 30))
+        XCTAssertTrue(composer.waitForExistence(timeout: 10))
+        self.waitForLandscape(in: app)
+        self.assertReadingColumn(completed, composer: composer, responseInset: 2)
+        XCTAssertGreaterThan(completed.frame.width, 700, "Must detect the former 560pt assistant cap")
+
+        let show = app.buttons.matching(identifier: "RootTabs.Sidebar.Show").firstMatch
+        let hide = app.buttons.matching(identifier: "RootTabs.Sidebar.Hide").firstMatch
+        show.tap()
+        XCTAssertTrue(hide.waitForExistence(timeout: 5))
+        self.assertReadingColumn(completed, composer: composer, responseInset: 2)
+        hide.tap()
+        XCTAssertTrue(show.waitForExistence(timeout: 5))
+
+        let input = app.descendants(matching: .any)["chat-message-input"].firstMatch
+        input.tap()
+        input.typeText("Check streaming width")
+        app.buttons["chat-send-message"].tap()
+        let streaming = app.descendants(matching: .any)["chat-streaming-assistant-body"].firstMatch
+        XCTAssertTrue(streaming.waitForExistence(timeout: 10))
+        self.assertReadingColumn(streaming, composer: composer, responseInset: 0)
+        XCTAssertGreaterThan(streaming.frame.width, 700, "Must detect the former streaming bubble cap")
+        show.tap()
+        XCTAssertTrue(hide.waitForExistence(timeout: 5))
+        self.assertReadingColumn(streaming, composer: composer, responseInset: 0)
+        XCUIDevice.shared.orientation = .portrait
+        self.waitForPortrait(in: app)
+        self.assertReadingColumn(streaming, composer: composer, responseInset: 0)
+    }
+
+    private func assertReadingColumn(_ response: XCUIElement, composer: XCUIElement, responseInset: CGFloat) {
+        let responseFrame = response.frame
+        let composerFrame = composer.frame
+        XCTAssertGreaterThan(responseFrame.height, 0)
+        XCTAssertGreaterThan(composerFrame.width, 0)
+        XCTAssertLessThanOrEqual(responseFrame.width, 760)
+        // Composer chrome sits inside 4pt padding; completed rows inset their body by 2pt.
+        print("Reading column: response=\(responseFrame), composer=\(composerFrame)")
+        XCTAssertEqual(responseFrame.width + responseInset * 2, composerFrame.width + 8, accuracy: 1)
+        XCTAssertEqual(responseFrame.midX, composerFrame.midX, accuracy: 2)
     }
 
     private func assertDraft(_ draft: String, in input: XCUIElement) {
